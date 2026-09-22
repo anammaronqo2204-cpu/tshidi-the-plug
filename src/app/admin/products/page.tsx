@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { asc, desc } from "drizzle-orm";
 import { db } from "@/db";
 import { categories, products, type Product } from "@/db/schema";
@@ -145,7 +145,7 @@ export default async function AdminProductsPage() {
       <section className="glass-neutral mt-6 rounded-3xl p-6">
         <h2 className="text-xl font-black">Add a subcategory</h2>
         <p className="mt-1 text-sm text-ink/55">
-          Every subcategory nests under one of the 4 departments (Shoes, Clothing, Accessories, House &amp; Home) —
+          Every subcategory nests under one of the 6 departments (Shoes, Clothing, Accessories, House &amp; Home, Hair, Combos) â€”
           that&rsquo;s what powers the Shop dropdown and filters.
         </p>
         <form action={createCategory} className="mt-4 grid gap-3 md:grid-cols-5">
@@ -223,11 +223,11 @@ export default async function AdminProductsPage() {
                   <img src={product.images[0]} alt="" loading="lazy" decoding="async" className="h-20 w-20 rounded-2xl object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-ink/40">
-                      {product.brand} · {product.categorySlug}
+                      {product.brand} Â· {product.categorySlug}
                     </p>
                     <h3 className="line-clamp-1 text-lg font-black">{product.name}</h3>
                     <p className="text-xs text-ink/50">
-                      {formatMoney(product.priceCents)} · {product.stock} units · {product.images.length} image(s)
+                      {formatMoney(product.priceCents)} Â· {product.stock} units Â· {product.images.length} image(s)
                     </p>
                   </div>
                   <Link prefetch={false} href={`/product/${product.slug}`} className="rounded-full border border-ink/15 px-4 py-2 text-[11px] font-black uppercase tracking-widest hover:border-flame hover:text-flame">
@@ -265,4 +265,5 @@ export default async function AdminProductsPage() {
     </div>
   );
 }
+
 
