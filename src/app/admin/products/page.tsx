@@ -3,12 +3,13 @@ import { asc, desc } from "drizzle-orm";
 import { db } from "@/db";
 import { categories, products, type Product } from "@/db/schema";
 import { ensureSeeded } from "@/db/seed";
-import { createCategory, updateCategory, createProduct, updateProduct, adjustStock } from "@/lib/admin-actions";
+import { createCategory, updateCategory, createProduct, updateProduct, adjustStock, bulkUpdateCategory } from "@/lib/admin-actions";
 import { formatMoney } from "@/lib/format";
 import { CATEGORY_GROUPS, groupCategories } from "@/lib/category-groups";
 import ImageUrlsField from "@/components/ImageUrlsField";
 import BulkZipUpload from "@/components/BulkZipUpload";
 import RemoveProductButton from "@/components/RemoveProductButton";
+import BulkCategoryMove from "./BulkCategoryMove";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Inventory admin" };
@@ -114,6 +115,15 @@ export default async function AdminProductsPage() {
 
   const categoryOptions = categoryRows.map((item) => ({ slug: item.slug, name: item.name }));
   const categoryGroups = groupCategories(categoryRows);
+  const pickerProducts = productRows.map((product) => ({
+    id: product.id,
+    name: product.name,
+    brand: product.brand,
+    categorySlug: product.categorySlug,
+    priceCents: product.priceCents,
+    stock: product.stock,
+    image: product.images[0] ?? "/images/hero.jpg",
+  }));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -207,6 +217,18 @@ export default async function AdminProductsPage() {
             </details>
           ))}
         </div>
+      </section>
+
+      <section className="glass-neutral mt-6 rounded-3xl p-6">
+        <h2 className="text-xl font-black">Bulk move products</h2>
+        <p className="mt-1 text-sm text-ink/55">
+          Filter down to the pile you&rsquo;re sorting (e.g. everything still sitting under &ldquo;Clothing&rdquo;),
+          tick the ones that are actually t-shirts, tracksuits, two-pieces or pants, pick the real category, and move
+          them all in one go &mdash; no more opening each product one at a time.
+        </p>
+        <form action={bulkUpdateCategory} className="mt-4">
+          <BulkCategoryMove products={pickerProducts} categoryGroups={categoryGroups} />
+        </form>
       </section>
 
       <section className="mt-8">
