@@ -219,7 +219,7 @@ export async function adjustStock(formData: FormData) {
 // Moves a batch of products to one category in a single query — the "Bulk move" picker
 // on the products page sends the checked product IDs as a comma-separated hidden field,
 // same pattern as createPool's productIds field.
-export async function bulkUpdateCategory(formData: FormData) {
+export async function bulkUpdateCategory(formData: FormData): Promise<void> {
   const categorySlug = str(formData, "categorySlug");
   const productIds = Array.from(
     new Set(
@@ -229,13 +229,12 @@ export async function bulkUpdateCategory(formData: FormData) {
         .filter((value) => Number.isFinite(value) && value > 0),
     ),
   );
-  if (!categorySlug || productIds.length === 0) return { moved: 0 };
+  if (!categorySlug || productIds.length === 0) return;
 
   await db.update(products).set({ categorySlug }).where(inArray(products.id, productIds));
   revalidatePath("/admin/products");
   revalidatePath("/shop");
   revalidatePath("/");
-  return { moved: productIds.length };
 }
 
 // Saves one site marketing photo (hero, home banner, or about photo) into the
