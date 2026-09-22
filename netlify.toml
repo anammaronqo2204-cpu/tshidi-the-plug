@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+## NOTE on secrets scanning:
+## SECRETS_SCAN_OMIT_KEYS and SECRETS_SCAN_OMIT_PATHS must be set as Netlify
+## dashboard Environment Variables (Site settings -> Environment variables),
+## NOT here in netlify.toml. If they're set inside this file, their own value
+## becomes literal text inside a file that ships with every deploy — and the
+## scanner then flags netlify.toml for "leaking" the very value that was
+## supposed to tell it what to ignore. Setting them only in the dashboard
+## avoids that self-match entirely. See the deploy notes for the exact
+## values to paste in.
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

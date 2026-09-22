@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// Deploy this in Firebase Console -> Storage -> Rules (or via `firebase deploy --only storage`
+// if you use the Firebase CLI).
+//
+// - Anyone can VIEW product photos — needed so the public storefront can display them.
+// - Only a signed-in user can UPLOAD or DELETE — and since sign-up isn't exposed anywhere
+//   in this app, "signed in" effectively means "an account you created yourself" in
+//   Firebase Console -> Authentication -> Users.
+// - Uploads are capped at 8MB and must be an image file, so someone can't fill your
+//   Storage bucket with arbitrary large files even if a session were ever compromised.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /products/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null;
+    }
+
+    // Deny everything else by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
