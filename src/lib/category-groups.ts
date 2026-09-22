@@ -40,3 +40,4 @@ export function groupCategories<T extends LeafCategory>(categories: T[]): (Categ
 export function categorySlugsInGroup<T extends LeafCategory>(categories: T[], groupSlug: string): string[] {
   return categories.filter((cat) => cat.groupSlug === groupSlug).map((cat) => cat.slug);
 }
+
