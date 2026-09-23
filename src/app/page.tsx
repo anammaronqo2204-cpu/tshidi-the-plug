@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
 import { DealCountdown } from "@/components/DealCountdown";
+import { DealsCarousel } from "@/components/DealsCarousel";
 import {
   getBestSellers,
   getCategories,
@@ -16,6 +17,8 @@ import { site, trustBadges } from "@/lib/site";
 import { getSiteImages } from "@/lib/site-images";
 import { getLiveTestimonials } from "@/lib/testimonials";
 import { dealPriceCents, ensureAutoDailyDeal } from "@/lib/deals";
+import { getActiveCombos, comboProductIdSet } from "@/lib/combos";
+import { getActivePools, poolRuleText } from "@/lib/pools";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +44,7 @@ const steps = [
 ];
 
 export default async function HomePage() {
-  const [categories, counts, featured, newArrivals, bestSellers, deals, testimonials, activeDeal, siteImages] =
+  const [categories, counts, featured, newArrivals, bestSellers, deals, testimonials, activeDeal, siteImages, activeCombos, activePools] =
     await Promise.all([
       getCategories(),
       getCategoryCounts(),
@@ -52,6 +55,8 @@ export default async function HomePage() {
       getLiveTestimonials(6),
       ensureAutoDailyDeal(),
       getSiteImages(),
+      getActiveCombos(),
+      getActivePools(),
     ]);
 
   const departments = groupCategories(categories).map((group) => ({
@@ -67,6 +72,90 @@ export default async function HomePage() {
       ? (await getProductsByIds([activeDeal.productId]))[0] ?? null
       : null;
   const storewideDeal = activeDeal && activeDeal.scope === "store" ? activeDeal : null;
+
+  // Preview cards for the homepage — cap at 3 of each so this doesn't turn into a wall.
+  const featuredCombos = activeCombos.slice(0, 3);
+  const comboCards = (
+    await Promise.all(
+      featuredCombos.map(async (combo) => {
+        const rows = await getProductsByIds([combo.productAId, combo.productBId]);
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        const a = byId.get(combo.productAId);
+        const b = byId.get(combo.productBId);
+        return a && b ? { combo, a, b } : null;
+      }),
+    )
+  ).filter((c): c is NonNullable<typeof c> => c !== null);
+
+  const featuredPools = activePools.slice(0, 3);
+  const poolCards = await Promise.all(
+    featuredPools.map(async (pool) => {
+      const rows = await getProductsByIds(pool.productIds.slice(0, 4));
+      return { pool, previewProducts: rows };
+    }),
+  );
+
+  const comboSlides = comboCards.map(({ combo, a, b }) => (
+    <Link
+      key={`combo-${combo.id}`}
+      href={`/product/${a.slug}`}
+      className="group block h-full overflow-hidden rounded-[2rem] bg-ink text-cream ring-1 ring-ink/10 transition hover:-translate-y-1"
+    >
+      <div className="relative grid grid-cols-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={a.images[0]}
+          alt={a.name}
+          className="aspect-square w-full object-cover transition duration-700 group-hover:scale-105"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={b.images[0]}
+          alt={b.name}
+          className="aspect-square w-full object-cover transition duration-700 group-hover:scale-105"
+        />
+        <span className="absolute right-3 top-3 rounded-full bg-flame px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+          −{combo.percentOff}%
+        </span>
+      </div>
+      <div className="p-5">
+        <p className="line-clamp-1 text-sm font-black">
+          {a.name} + {b.name}
+        </p>
+        <p className="mt-1 text-xs font-bold uppercase tracking-wider text-volt">
+          Save {combo.percentOff}% when you buy both
+        </p>
+      </div>
+    </Link>
+  ));
+
+  const poolSlides = poolCards.map(({ pool, previewProducts }) => (
+    <Link
+      key={`pool-${pool.id}`}
+      href="/shop?onSale=true"
+      className="group block h-full overflow-hidden rounded-[2rem] bg-flame/10 ring-1 ring-flame/20 transition hover:-translate-y-1"
+    >
+      <div className="relative grid grid-cols-2 gap-0.5 p-0.5">
+        {previewProducts.slice(0, 4).map((p) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={p.id}
+            src={p.images[0]}
+            alt={p.name}
+            className="aspect-square w-full rounded-2xl object-cover transition duration-700 group-hover:scale-105"
+          />
+        ))}
+      </div>
+      <div className="p-5">
+        <p className="line-clamp-1 text-sm font-black text-ink">{pool.name}</p>
+        <p className="mt-1 text-xs font-bold uppercase tracking-wider text-flame">
+          {poolRuleText(pool, formatMoney)}
+        </p>
+      </div>
+    </Link>
+  ));
+
+  const moreDealsSlides = [...comboSlides, ...poolSlides];
 
   const heroProduct = featured[0];
 
@@ -275,6 +364,32 @@ export default async function HomePage() {
                 </span>
               </Link>
             </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* ---------------- MORE DEALS (combos + pools, carousel) ---------------- */}
+      {moreDealsSlides.length > 0 ? (
+        <section className="mx-auto max-w-7xl px-4 pt-14 sm:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-flame">
+                More ways to save
+              </p>
+              <h2 className="display-tight mt-2 text-3xl font-black sm:text-5xl">
+                Combo &amp; bundle deals
+              </h2>
+            </div>
+            <Link
+              href="/shop?onSale=true"
+              className="rounded-full border border-ink/20 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] transition hover:border-ink hover:bg-ink hover:text-cream"
+            >
+              See all deals
+            </Link>
+          </div>
+
+          <div className="mt-8">
+            <DealsCarousel slides={moreDealsSlides} />
           </div>
         </section>
       ) : null}
