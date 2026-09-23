@@ -8,10 +8,12 @@ import {
   endDailyDeal,
   toggleCombo,
   togglePool,
+  updateAutoDealSettings,
 } from "@/lib/admin-actions";
 import {
   getAllCombosAdmin,
   getAllPoolsAdmin,
+  getAutoDealAdmin,
   getDailyDealAdmin,
   getProductsForDealSelect,
   getProductsForPoolSelect,
@@ -29,13 +31,14 @@ const input =
 const label = "text-[10px] font-black uppercase tracking-[0.2em] text-ink/45";
 
 export default async function AdminDealsPage() {
-  const [activeDeal, dealProducts, combos, poolProducts, poolCategories, pools] = await Promise.all([
+  const [activeDeal, dealProducts, combos, poolProducts, poolCategories, pools, autoDeal] = await Promise.all([
     getDailyDealAdmin(),
     getProductsForDealSelect(),
     getAllCombosAdmin(),
     getProductsForPoolSelect(),
     getCategories(),
     getAllPoolsAdmin(),
+    getAutoDealAdmin(),
   ]);
 
   return (
@@ -136,6 +139,58 @@ export default async function AdminDealsPage() {
           <div className="sm:col-span-2">
             <button className="rounded-full bg-ink px-6 py-3 text-xs font-black uppercase tracking-[0.2em] text-cream hover:bg-flame">
               Go live for today
+            </button>
+          </div>
+        </form>
+      </section>
+
+      {/* ---------------- AUTO SPECIAL OF THE DAY ---------------- */}
+      <section className="glass-neutral mt-8 rounded-3xl p-6">
+        <h2 className="text-xl font-black">Special of the day — auto rotation</h2>
+        <p className="mt-1 text-sm text-ink/55">
+          Runs on its own: every day, once the deal above isn&apos;t live, it automatically
+          picks one product — skipping anything already in a pool or combo deal — and
+          discounts it until midnight. It cycles through every eligible product once
+          before repeating.
+        </p>
+
+        <div className="mt-5 rounded-2xl bg-white p-5 text-sm font-semibold text-ink/70 ring-1 ring-ink/5">
+          {autoDeal.eligibleCount === 0 ? (
+            <p>No eligible products right now — everything in stock is already in a pool or combo deal.</p>
+          ) : (
+            <p>
+              {autoDeal.usedCount} of {autoDeal.eligibleCount} eligible products have had a turn this cycle.
+              {autoDeal.usedCount >= autoDeal.eligibleCount ? " Starting over next pick." : ""}
+            </p>
+          )}
+        </div>
+
+        <form action={updateAutoDealSettings} className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm font-bold">
+              <input
+                type="checkbox"
+                name="enabled"
+                defaultChecked={autoDeal.enabled}
+                className="accent-[#8a5a44]"
+              />
+              Auto-pick a special of the day
+            </label>
+          </div>
+          <div>
+            <label className={label}>Percent off</label>
+            <input
+              name="percentOff"
+              type="number"
+              min="5"
+              max="90"
+              defaultValue={autoDeal.percentOff}
+              className={`${input} mt-1`}
+            />
+          </div>
+          <div className="flex items-end sm:col-span-2">
+            <button className="rounded-full bg-ink px-6 py-3 text-xs font-black uppercase tracking-[0.2em] text-cream hover:bg-flame">
+              Save
             </button>
           </div>
         </form>

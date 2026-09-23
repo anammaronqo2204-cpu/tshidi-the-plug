@@ -15,7 +15,7 @@ import { groupCategories } from "@/lib/category-groups";
 import { site, trustBadges } from "@/lib/site";
 import { getSiteImages } from "@/lib/site-images";
 import { getLiveTestimonials } from "@/lib/testimonials";
-import { dealPriceCents, getActiveDeal } from "@/lib/deals";
+import { dealPriceCents, ensureAutoDailyDeal } from "@/lib/deals";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +50,7 @@ export default async function HomePage() {
       getBestSellers(4),
       getDeals(4),
       getLiveTestimonials(6),
-      getActiveDeal(),
+      ensureAutoDailyDeal(),
       getSiteImages(),
     ]);
 

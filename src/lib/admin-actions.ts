@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { categories, combos, dailyDeals, pools, poolItems, products, settings, testimonials } from "@/db/schema";
-import { endOfTodaySast } from "./deals";
+import { endOfTodaySast, setAutoDealSettings } from "./deals";
 import { seedDatabase } from "@/db/seed";
 import { CATEGORY_GROUP_SLUGS } from "./category-groups";
 import { SITE_IMAGE_KEYS, type SiteImageKey } from "./site-images";
@@ -406,6 +406,16 @@ export async function endDailyDeal(formData: FormData) {
   if (!id) return;
   await db.update(dailyDeals).set({ active: false }).where(eq(dailyDeals.id, id));
   revalidatePath("/", "layout");
+}
+
+// Auto "Special of the day" — turns the self-running rotation on/off and sets its
+// percent off. Only takes effect on the *next* deal picked; it never touches whichever
+// deal (manual or auto) is currently live.
+export async function updateAutoDealSettings(formData: FormData) {
+  const enabled = bool(formData, "enabled");
+  const percentOff = Math.min(90, Math.max(5, Math.round(num(formData, "percentOff", 15))));
+  await setAutoDealSettings(enabled, percentOff);
+  revalidatePath("/admin/deals");
 }
 
 // ---------------- Combo / bundle deals ----------------

@@ -1,7 +1,7 @@
 import { asc, desc, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { combos, orderItems, orders, pools, poolItems, products, subscribers } from "@/db/schema";
-import { getActiveDeal } from "./deals";
+import { getActiveDeal, getAutoDealRotationStatus, getAutoDealSettings } from "./deals";
 
 export async function getStats() {
   const [totals] = await db
@@ -198,6 +198,11 @@ export async function getDailyDealAdmin() {
     .where(eq(products.id, deal.productId))
     .limit(1);
   return { ...deal, product: product ?? null };
+}
+
+export async function getAutoDealAdmin() {
+  const [settings, rotation] = await Promise.all([getAutoDealSettings(), getAutoDealRotationStatus()]);
+  return { ...settings, ...rotation };
 }
 
 export async function getProductsForDealSelect() {

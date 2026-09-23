@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { ProductCard } from "@/components/ProductCard";
 import { ShopFilters, SortSelect } from "@/components/ShopFilters";
 import { getBrands, getCategories, getProductsByIds, searchProducts, type SortKey } from "@/lib/catalog";
-import { getActiveDeal } from "@/lib/deals";
+import { ensureAutoDailyDeal } from "@/lib/deals";
 import { getActiveCombos, comboProductIdSet } from "@/lib/combos";
 import { getActivePools, poolProductIdSet, poolRuleText } from "@/lib/pools";
 import { formatMoney } from "@/lib/format";
@@ -56,7 +56,7 @@ export default async function ShopPage({
   const [categories, brandFacets, activeDeal, activeCombos, activePools] = await Promise.all([
     getCategories(),
     getBrands(),
-    getActiveDeal(),
+    ensureAutoDailyDeal(),
     getActiveCombos(),
     getActivePools(),
   ]);
