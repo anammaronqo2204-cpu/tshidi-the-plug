@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "./CartProvider";
 import { Wordmark } from "./PlugMark";
@@ -24,14 +24,25 @@ export function SiteHeader({ groups }: { groups: NavGroup[] }) {
   const [term, setTerm] = useState("");
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   // The admin lives inside this same header. Prefetching shop pages from there just adds
   // background server work that slows the admin down, so it's only on for customers.
   const prefetch = pathname?.startsWith("/admin") ? false : undefined;
 
+  // Watches both the path AND the query string, since most "Shop all" links (categories,
+  // groups, sale) all point at /shop with just a different ?query — a query-only change
+  // doesn't touch pathname, so without searchParams here the menu would stay stuck open.
   useEffect(() => {
     setMenuOpen(false);
     setShopOpen(false);
-  }, [pathname]);
+  }, [pathname, searchParams]);
+
+  // Belt-and-braces: close immediately on click rather than waiting for the route to
+  // finish changing, so the panel never lingers over the page for a frame or two.
+  function closeMenus() {
+    setMenuOpen(false);
+    setShopOpen(false);
+  }
 
   function submitSearch(event: React.FormEvent) {
     event.preventDefault();
@@ -106,6 +117,7 @@ export function SiteHeader({ groups }: { groups: NavGroup[] }) {
                   <div className="absolute left-0 top-[calc(100%+14px)] z-20 max-h-[75vh] w-[360px] overflow-y-auto rounded-3xl border border-ink/10 bg-cream p-3 shadow-[0_30px_80px_-40px_rgba(16,13,11,0.7)]">
                     <Link prefetch={prefetch}
                       href="/shop"
+                      onClick={closeMenus}
                       className="block rounded-2xl bg-ink px-4 py-3 text-sm font-semibold text-cream transition hover:bg-flame"
                     >
                       Shop everything →
@@ -116,7 +128,7 @@ export function SiteHeader({ groups }: { groups: NavGroup[] }) {
                           <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition hover:bg-sand [&::-webkit-details-marker]:hidden">
                             <Link prefetch={prefetch}
                               href={`/shop?group=${group.slug}`}
-                              onClick={() => setShopOpen(false)}
+                              onClick={closeMenus}
                               className="hover:text-flame"
                             >
                               {group.name}
@@ -138,7 +150,7 @@ export function SiteHeader({ groups }: { groups: NavGroup[] }) {
                               <Link prefetch={prefetch}
                                 key={cat.slug}
                                 href={`/shop?category=${cat.slug}`}
-                                onClick={() => setShopOpen(false)}
+                                onClick={closeMenus}
                                 className="rounded-lg bg-sand/60 px-3 py-2 text-xs font-medium transition hover:bg-sand"
                               >
                                 {cat.name}
@@ -151,6 +163,7 @@ export function SiteHeader({ groups }: { groups: NavGroup[] }) {
                     <div className="mt-2 flex gap-1.5">
                       <Link prefetch={prefetch}
                         href="/shop?sale=1"
+                        onClick={closeMenus}
                         className="flex-1 rounded-xl bg-flame px-3 py-2.5 text-center text-sm font-semibold text-white transition hover:opacity-90"
                       >
                         Sale
@@ -227,13 +240,13 @@ export function SiteHeader({ groups }: { groups: NavGroup[] }) {
                 Shop all ▾
               </summary>
               <div className="space-y-2 px-3 pb-3 text-sm font-medium">
-                <Link prefetch={prefetch} href="/shop" className="block rounded-xl bg-ink px-4 py-3 text-cream">
+                <Link prefetch={prefetch} href="/shop" onClick={closeMenus} className="block rounded-xl bg-ink px-4 py-3 text-cream">
                   Shop everything
                 </Link>
                 {groups.map((group) => (
                   <details key={group.slug} className="group/dep rounded-xl bg-sand/70">
                     <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 [&::-webkit-details-marker]:hidden">
-                      <Link prefetch={prefetch} href={`/shop?group=${group.slug}`}>
+                      <Link prefetch={prefetch} href={`/shop?group=${group.slug}`} onClick={closeMenus}>
                         {group.name}
                       </Link>
                       <svg
@@ -253,6 +266,7 @@ export function SiteHeader({ groups }: { groups: NavGroup[] }) {
                         <Link prefetch={prefetch}
                           key={cat.slug}
                           href={`/shop?category=${cat.slug}`}
+                          onClick={closeMenus}
                           className="rounded-xl bg-white px-4 py-3"
                         >
                           {cat.name}
@@ -261,26 +275,26 @@ export function SiteHeader({ groups }: { groups: NavGroup[] }) {
                     </div>
                   </details>
                 ))}
-                <Link prefetch={prefetch} href="/shop?sale=1" className="block rounded-xl bg-flame px-4 py-3 text-white">
+                <Link prefetch={prefetch} href="/shop?sale=1" onClick={closeMenus} className="block rounded-xl bg-flame px-4 py-3 text-white">
                   Sale
                 </Link>
               </div>
             </details>
 
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm font-medium">
-              <Link prefetch={prefetch} href="/tshidi" className="rounded-xl bg-white px-4 py-3">
+              <Link prefetch={prefetch} href="/tshidi" onClick={closeMenus} className="rounded-xl bg-white px-4 py-3">
                 Meet Tshidi
               </Link>
-              <Link prefetch={prefetch} href="/faq" className="rounded-xl bg-white px-4 py-3">
+              <Link prefetch={prefetch} href="/faq" onClick={closeMenus} className="rounded-xl bg-white px-4 py-3">
                 FAQ
               </Link>
-              <Link prefetch={prefetch} href="/delivery" className="rounded-xl bg-white px-4 py-3">
+              <Link prefetch={prefetch} href="/delivery" onClick={closeMenus} className="rounded-xl bg-white px-4 py-3">
                 Delivery
               </Link>
-              <Link prefetch={prefetch} href="/policies" className="rounded-xl bg-white px-4 py-3">
+              <Link prefetch={prefetch} href="/policies" onClick={closeMenus} className="rounded-xl bg-white px-4 py-3">
                 Policies
               </Link>
-              <Link prefetch={prefetch} href="/track" className="col-span-2 rounded-xl bg-ink px-4 py-3 text-cream">
+              <Link prefetch={prefetch} href="/track" onClick={closeMenus} className="col-span-2 rounded-xl bg-ink px-4 py-3 text-cream">
                 Track order
               </Link>
             </div>
