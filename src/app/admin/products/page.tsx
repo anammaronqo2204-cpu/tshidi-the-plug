@@ -5,10 +5,12 @@ import { categories, products, type Product } from "@/db/schema";
 import { ensureSeeded } from "@/db/seed";
 import { createCategory, updateCategory, createProduct, updateProduct, adjustStock, bulkUpdateCategory } from "@/lib/admin-actions";
 import { formatMoney } from "@/lib/format";
-import { CATEGORY_GROUPS, groupCategories } from "@/lib/category-groups";
+import { CATEGORY_GROUPS, groupCategories, buildDefaultSizesBySlug } from "@/lib/category-groups";
 import ImageUrlsField from "@/components/ImageUrlsField";
 import BulkZipUpload from "@/components/BulkZipUpload";
 import RemoveProductButton from "@/components/RemoveProductButton";
+import CategorySizeFields from "@/components/CategorySizeFields";
+import SizePresetField from "@/components/SizePresetField";
 import BulkCategoryMove from "./BulkCategoryMove";
 
 export const dynamic = "force-dynamic";
@@ -20,10 +22,12 @@ const label = "text-[10px] font-black uppercase tracking-[0.2em] text-ink/45";
 function ProductFields({
   product,
   categoryGroups,
+  defaultSizesBySlug,
   compact = false,
 }: {
   product?: Product;
   categoryGroups: { slug: string; name: string; subcategories: { slug: string; name: string }[] }[];
+  defaultSizesBySlug: Record<string, string>;
   compact?: boolean;
 }) {
   return (
@@ -40,20 +44,6 @@ function ProductFields({
       <div>
         <label className={label}>Brand</label>
         <input name="brand" required defaultValue={product?.brand} className={`${input} mt-1`} />
-      </div>
-      <div>
-        <label className={label}>Category</label>
-        <select name="categorySlug" defaultValue={product?.categorySlug ?? "sneakers"} className={`${input} mt-1`}>
-          {categoryGroups.map((group) => (
-            <optgroup key={group.slug} label={group.name}>
-              {group.subcategories.map((category) => (
-                <option key={category.slug} value={category.slug}>
-                  {category.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
       </div>
       <div>
         <label className={label}>Price in rand</label>
@@ -79,10 +69,16 @@ function ProductFields({
         <label className={label}>Review count</label>
         <input name="reviewCount" type="number" min="0" defaultValue={product?.reviewCount ?? 0} className={`${input} mt-1`} />
       </div>
-      <div className="md:col-span-2">
-        <label className={label}>Sizes, separated by commas or lines</label>
-        <textarea name="sizes" rows={2} defaultValue={(product?.sizes ?? ["One Size"]).join(", ")} className={`${input} mt-1`} />
-      </div>
+      <CategorySizeFields
+        categoryGroups={categoryGroups}
+        defaultSizesBySlug={defaultSizesBySlug}
+        initialCategorySlug={product?.categorySlug ?? categoryGroups[0]?.subcategories[0]?.slug ?? "sneakers"}
+        initialSizes={
+          product
+            ? product.sizes.join(", ")
+            : defaultSizesBySlug[categoryGroups[0]?.subcategories[0]?.slug ?? ""] ?? "One Size"
+        }
+      />
       <ImageUrlsField initialImages={product?.images ?? []} />
       <div className="md:col-span-2">
         <label className={label}>Description</label>
@@ -115,6 +111,7 @@ export default async function AdminProductsPage() {
 
   const categoryOptions = categoryRows.map((item) => ({ slug: item.slug, name: item.name }));
   const categoryGroups = groupCategories(categoryRows);
+  const defaultSizesBySlug = buildDefaultSizesBySlug(categoryRows);
   const pickerProducts = productRows.map((product) => ({
     id: product.id,
     name: product.name,
@@ -143,14 +140,14 @@ export default async function AdminProductsPage() {
       <section className="glass-neutral mt-8 rounded-3xl p-6">
         <h2 className="text-xl font-black">Add a new product</h2>
         <form action={createProduct} className="mt-5">
-          <ProductFields categoryGroups={categoryGroups} />
+          <ProductFields categoryGroups={categoryGroups} defaultSizesBySlug={defaultSizesBySlug} />
           <button className="mt-5 rounded-full bg-ink px-6 py-3 text-xs font-black uppercase tracking-[0.2em] text-cream hover:bg-flame">
             Add product to shop
           </button>
         </form>
       </section>
 
-      <BulkZipUpload categoryOptions={categoryOptions} />
+      <BulkZipUpload categoryOptions={categoryOptions} defaultSizesBySlug={defaultSizesBySlug} />
 
       <section className="glass-neutral mt-6 rounded-3xl p-6">
         <h2 className="text-xl font-black">Add a subcategory</h2>
@@ -171,6 +168,7 @@ export default async function AdminProductsPage() {
           <input name="tagline" placeholder="Rings, chains & earrings" className={`${input} md:col-span-2`} />
           <input name="imageUrl" placeholder="Category image URL" className={input} />
           <input name="sortOrder" type="number" placeholder="Sort order" className={input} />
+          <SizePresetField />
           <button className="rounded-full bg-flame px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white md:col-span-4">
             Save subcategory
           </button>
@@ -193,6 +191,10 @@ export default async function AdminProductsPage() {
                       {CATEGORY_GROUPS.find((g) => g.slug === category.groupSlug)?.name ?? category.groupSlug}
                     </p>
                     <h3 className="text-base font-black">{category.name}</h3>
+                    <p className="mt-0.5 text-[11px] font-semibold text-ink/45">
+                      Sizes: {defaultSizesBySlug[category.slug] ?? "One Size"}
+                      {category.sizePreset ? "" : " (department default)"}
+                    </p>
                   </div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-flame">Edit</span>
                 </div>
@@ -210,6 +212,7 @@ export default async function AdminProductsPage() {
                 <input name="tagline" defaultValue={category.tagline} className={`${input} md:col-span-2`} />
                 <input name="sortOrder" type="number" defaultValue={category.sortOrder} className={input} />
                 <input name="imageUrl" defaultValue={category.imageUrl} placeholder="Category image URL" className={`${input} md:col-span-4`} />
+                <SizePresetField initialValue={category.sizePreset ?? ""} />
                 <button className="rounded-full bg-ink px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-cream hover:bg-flame md:col-span-1">
                   Save
                 </button>
@@ -272,7 +275,7 @@ export default async function AdminProductsPage() {
                 </form>
 
                 <form action={updateProduct}>
-                  <ProductFields product={product} categoryGroups={categoryGroups} compact />
+                  <ProductFields product={product} categoryGroups={categoryGroups} defaultSizesBySlug={defaultSizesBySlug} compact />
                   <div className="mt-5 flex flex-wrap gap-3">
                     <button className="rounded-full bg-ink px-6 py-3 text-xs font-black uppercase tracking-[0.2em] text-cream hover:bg-flame">
                       Save product changes
