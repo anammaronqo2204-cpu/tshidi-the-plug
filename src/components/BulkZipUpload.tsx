@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import JSZip from "jszip";
 import { bulkCreateProducts } from "@/lib/admin-actions";
 import { shrinkImageForUpload } from "@/lib/shrink-image";
@@ -117,25 +117,14 @@ function nameFromFilename(filename: string) {
   return { name: spaced, brand, priceCents, bundleNote };
 }
 
-// Auto-categorised sizes: pick a preset based on what the category is called,
-// so the merchant doesn't have to retype the same size list on every batch.
-// Still just fills the text box — fully editable per batch afterwards (e.g.
-// trim a wig design down to the lengths it's actually stocked in).
-const SIZE_PRESETS = {
-  clothing: "S, M, L, XL",
-  shoes: "4, 5, 6, 7, 8, 9, 10, 11, 12",
-  wigs: "10, 12, 14, 16, 18, 20, 22",
-} as const;
-
-type SizeKind = keyof typeof SIZE_PRESETS;
-
-function guessSizeKind(categoryName: string): SizeKind | null {
-  const n = categoryName.toLowerCase();
-  if (/\b(wig|weave|closure|frontal|braid|bundle|hair)\b/.test(n)) return "wigs";
-  if (/\b(shoe|sneaker|slide|sandal|boot|heel|takkie|footwear|trainer)\b/.test(n)) return "shoes";
-  if (/\b(shirt|tee|hoodie|jacket|tracksuit|jean|pant|trouser|dress|top|sweater|sweatshirt|jersey|clothing|apparel|skirt|short)\b/.test(n))
-    return "clothing";
-  return null;
+// Detects whether this category is "wig-like" — i.e. one photo becomes ONE product
+// with a size:price grid (each length its own price) instead of a flat price. This is
+// a UI-mode decision only; the actual default SIZES list now always comes from the
+// category's own department default (or override), passed in via defaultSizesBySlug —
+// not guessed from the category name, which is what used to make "Kids Shoes" quietly
+// inherit the regular adult shoe sizes.
+function isWigLikeCategory(categoryName: string): boolean {
+  return /\b(wig|weave|closure|frontal|braid|bundle|hair)\b/.test(categoryName.toLowerCase());
 }
 
 type Row = {
@@ -147,7 +136,8 @@ type Row = {
   bundleNote: string | null;
   // Only used for wig-style categories: "10:1000, 12:1200, 14:1350" — one photo,
   // many sizes, each with its own rand price. When filled in, this row becomes
-  // ONE product with a size dropdown instead of using priceOverride/batch price.
+  // ONE product with a size dropdown, each size charging its own price, instead of
+  // priceOverride/batch price.
   sizePricingText: string;
 };
 
@@ -168,11 +158,13 @@ function parseSizePricingText(text: string): Record<string, number> | null {
   return pairs.length ? Object.fromEntries(pairs) : null;
 }
 
-// Default per-row template for a wig batch, so the merchant just has to fill
-// in the numbers after each colon instead of typing the whole thing.
-function sizePricingTemplate(kind: SizeKind | null): string {
-  if (kind !== "wigs") return "";
-  return SIZE_PRESETS.wigs
+// Default per-row template for a wig batch, so the merchant just has to fill in the
+// numbers after each colon instead of typing the whole thing. Built from this
+// category's own default sizes list, so a Hair subcategory with its own size override
+// (set in Manage Subcategories) is reflected here too, not a hardcoded constant.
+function sizePricingTemplate(defaultSizes: string): string {
+  if (!defaultSizes.trim()) return "";
+  return defaultSizes
     .split(",")
     .map((s) => `${s.trim()}:`)
     .join(", ");
@@ -180,38 +172,29 @@ function sizePricingTemplate(kind: SizeKind | null): string {
 
 export default function BulkZipUpload({
   categoryOptions,
+  defaultSizesBySlug,
 }: {
   categoryOptions: { slug: string; name: string }[];
+  defaultSizesBySlug: Record<string, string>;
 }) {
   const [fallbackBrand, setFallbackBrand] = useState("");
   const [categorySlug, setCategorySlug] = useState(categoryOptions[0]?.slug ?? "sneakers");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("10");
-  const [sizes, setSizes] = useState("");
+  const [sizes, setSizes] = useState(() => defaultSizesBySlug[categoryOptions[0]?.slug ?? ""] ?? "");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ created: number } | null>(null);
 
-  // Pre-fill sizes for whatever category is selected by default, on first load.
-  useEffect(() => {
-    const initialCategory = categoryOptions[0];
-    if (!initialCategory) return;
-    const kind = guessSizeKind(initialCategory.name);
-    if (kind) setSizes(SIZE_PRESETS[kind]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const currentCategoryName = categoryOptions.find((c) => c.slug === categorySlug)?.name ?? "";
-  const currentKind = guessSizeKind(currentCategoryName);
-  const isWigBatch = currentKind === "wigs";
+  const isWigBatch = isWigLikeCategory(currentCategoryName);
 
   function handleCategoryChange(slug: string) {
     setCategorySlug(slug);
-    const category = categoryOptions.find((c) => c.slug === slug);
-    const kind = category ? guessSizeKind(category.name) : null;
-    if (kind) setSizes(SIZE_PRESETS[kind]);
+    const fallback = defaultSizesBySlug[slug];
+    if (fallback) setSizes(fallback);
   }
 
   async function handleZip(file: File | null) {
@@ -248,8 +231,7 @@ export default function BulkZipUpload({
         const shrunk = await shrinkImageForUpload(blob, fileName);
         const url = await uploadImageToBlobStore(shrunk, shrunk.name);
         const { name, brand, priceCents, bundleNote } = nameFromFilename(fileName);
-        const currentCategory = categoryOptions.find((c) => c.slug === categorySlug);
-        const kind = currentCategory ? guessSizeKind(currentCategory.name) : null;
+        const currentDefaultSizes = defaultSizesBySlug[categorySlug] ?? "";
         uploaded.push({
           name,
           brand,
@@ -257,7 +239,7 @@ export default function BulkZipUpload({
           fileName,
           priceOverride: priceCents,
           bundleNote,
-          sizePricingText: sizePricingTemplate(kind),
+          sizePricingText: isWigBatch ? sizePricingTemplate(currentDefaultSizes) : "",
         });
       }
 
@@ -385,7 +367,8 @@ export default function BulkZipUpload({
         Zip up already-renamed images, e.g. <span className="font-mono">Nike Air Max 1 - White Purple Sangria.jpeg</span>.
         Brand is detected from each filename automatically (editable per row below). If the zip&apos;s own filename has a
         price in it (e.g. <span className="font-mono">1500.zip</span>), that becomes the shared price for every item — or set one manually below.
-        Sizes are also guessed from the category you pick — clothing gets S/M/L/XL, shoes get 4–12, and wigs/closures/hair get an inch range —
+        Sizes are also filled in from the category you pick — set per-department in Manage Subcategories below
+        (Shoes get 4–12, Clothing gets S/M/L/XL, unless a subcategory like &quot;Kids Shoes&quot; has its own override) —
         edit the box if a specific batch needs something different.
       </p>
 

@@ -148,4 +148,7 @@ export const bootstrapStatements = [
     pool_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL
   )`,
+  // Per-subcategory default sizes (e.g. "Kids Shoes" gets its own preset instead of the
+  // "Shoes" department default). Null/empty means "use the department default".
+  `ALTER TABLE categories ADD COLUMN IF NOT EXISTS size_preset TEXT`,
 ];

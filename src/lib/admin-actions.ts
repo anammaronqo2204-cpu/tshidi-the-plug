@@ -269,6 +269,7 @@ export async function createCategory(formData: FormData) {
       imageUrl: str(formData, "imageUrl", "/images/hero.jpg"),
       sortOrder: Math.round(num(formData, "sortOrder", 99)),
       groupSlug,
+      sizePreset: str(formData, "sizePreset") || null,
     })
     .onConflictDoNothing();
   revalidatePath("/admin/products");
@@ -296,6 +297,7 @@ export async function updateCategory(formData: FormData) {
       imageUrl: str(formData, "imageUrl", "/images/hero.jpg"),
       sortOrder: Math.round(num(formData, "sortOrder", 0)),
       groupSlug,
+      sizePreset: str(formData, "sizePreset") || null,
     })
     .where(eq(categories.id, id));
   revalidatePath("/admin/products");

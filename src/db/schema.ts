@@ -20,6 +20,11 @@ export const categories = pgTable("categories", {
   // category nests under, e.g. "sneakers" -> groupSlug "shoes". A category row is
   // always a subcategory/leaf; the department itself isn't a DB row.
   groupSlug: text("group_slug").notNull().default("shoes"),
+  // Comma-separated default sizes for products in this subcategory, e.g. "4,5,6,7,8,9,10,11,12".
+  // Null/empty means "use the department's default" (see DEPARTMENT_DEFAULT_SIZES in
+  // lib/category-groups.ts) — only set this when a subcategory needs its own sizing,
+  // like "Kids Shoes" under Shoes, or "Pants" under Clothing.
+  sizePreset: text("size_preset"),
 });
 
 export const products = pgTable("products", {
